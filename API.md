@@ -1,20 +1,21 @@
 # WOTT ↔ whatisonthe.tv API Contract
 
-*What the mobile app calls, verified against the backend source
+_What the mobile app calls, verified against the backend source
 (`swmcc/whatisonthe.tv`, `backend/app/`). Live interactive docs:
-`https://whatisonthe.tv/docs` (FastAPI OpenAPI). Sections marked **PROPOSED**
-are M1 backend work that doesn't exist yet — see the linked issues.*
+`https://whatisonthe.tv/docs` (FastAPI OpenAPI). All M1 endpoints
+(continue-watching, refresh tokens, `client_uuid` idempotency, Capacitor
+CORS) are **implemented and merged** (whatisonthe.tv#20) — awaiting deploy._
 
-**Last verified against backend source:** 2026-08-23
+**Last verified against backend source:** 2026-08-24 (post-M1 merge)
 
 ---
 
 ## Base URLs
 
-| Environment | Base | Notes |
-|---|---|---|
-| Production | `https://whatisonthe.tv/api` | Heroku; same app serves website + API |
-| Local dev | `http://localhost:8000/api` | `uvicorn` default; backend repo at `~/Code/whatisonthe.tv/backend` |
+| Environment | Base                         | Notes                                                              |
+| ----------- | ---------------------------- | ------------------------------------------------------------------ |
+| Production  | `https://whatisonthe.tv/api` | Heroku; same app serves website + API                              |
+| Local dev   | `http://localhost:8000/api`  | `uvicorn` default; backend repo at `~/Code/whatisonthe.tv/backend` |
 
 All endpoints below are relative to the base (i.e. `/auth/login` means
 `https://whatisonthe.tv/api/auth/login`). Errors come back as FastAPI-standard
@@ -50,28 +51,28 @@ All endpoints below are relative to the base (i.e. `/auth/login` means
 
 401 with `{"detail": "Incorrect email or password"}` on bad credentials.
 
-- JWT, HS256, `sub` = user id (string). Currently expires after **7 days**
-  with no refresh (`backend/app/core/config.py` →
-  `access_token_expire_minutes`). Refresh tokens are M1 work — see PROPOSED
-  below and [whatisonthe.tv#17](https://github.com/swmcc/whatisonthe.tv/issues/17).
+- JWT, HS256, `sub` = user id (string). Access tokens expire after **24
+  hours**; the login response also returns a **rotating refresh token**
+  (~180 days) — see below.
 - Send as `Authorization: Bearer <token>` on every authenticated call.
 - Store in **Capacitor Secure Storage**, never localStorage.
 - `GET /auth/me` → the `user` object above; useful as a token-validity probe.
 - `POST /auth/logout` exists but is a no-op server-side; logout = delete the
   stored token.
 
-### PROPOSED — refresh tokens ([whatisonthe.tv#17](https://github.com/swmcc/whatisonthe.tv/issues/17))
-
-Shape to build against (may be adjusted in that issue — check it before
-implementing the client side):
+### Refresh tokens (shipped — [whatisonthe.tv#17](https://github.com/swmcc/whatisonthe.tv/issues/17))
 
 ```json
-// POST /auth/login response gains:
+// POST /auth/login response includes:
 { "access_token": "…", "refresh_token": "…", "token_type": "bearer", "user": {…} }
 // POST /auth/refresh
 // request:  { "refresh_token": "…" }
-// response: { "access_token": "…", "refresh_token": "…" }  // rotating
+// response: { "access_token": "…", "refresh_token": "…" }  // rotating, stateless
 ```
+
+401 on an invalid/expired refresh token, or on an access token sent to
+`/auth/refresh` (refresh tokens carry a `type: "refresh"` claim and are
+equally rejected as Bearer access tokens).
 
 Client behaviour: on any 401, try one refresh, retry the original request,
 and only surface the login screen if the refresh itself 401s.
@@ -115,17 +116,18 @@ Behaviour worth knowing:
 - 404 if `episode_id` isn't in the server DB yet ("Please ensure the series
   and its episodes are loaded") — can happen while the background sync is
   still running on a brand-new series. Treat as retryable.
-- **Not yet idempotent.** `client_uuid` upsert is M1 work —
-  [whatisonthe.tv#18](https://github.com/swmcc/whatisonthe.tv/issues/18).
-  PROPOSED shape: request gains optional `"client_uuid": "<uuid4>"`; posting
-  the same `client_uuid` twice returns the existing check-in (200) instead of
-  creating a duplicate; response echoes `client_uuid`. The sync queue (wott
-  #11/#12) must send it on every POST.
+- **Idempotent via `client_uuid`** (shipped —
+  [whatisonthe.tv#18](https://github.com/swmcc/whatisonthe.tv/issues/18)):
+  request takes optional `"client_uuid": "<uuid4>"`; posting the same
+  `client_uuid` twice returns the existing check-in with **200** instead of
+  creating a duplicate (409 if the uuid belongs to another user); response
+  echoes `client_uuid`. The sync queue (wott #11/#12) must send it on every
+  POST. Requests without it behave as before.
 
 ### `GET /checkins?days=10&before_date=<ISO>` — history
 
 Returns a **flat array** of `CheckinResponse` (shape above), newest first,
-covering the `days` most recent *distinct days* that have check-ins (not
+covering the `days` most recent _distinct days_ that have check-ins (not
 calendar days). Day-grouping happens client-side. Infinite scroll: pass the
 oldest `watched_at` you have as `before_date`, use `days=3` for pages
 (website convention).
@@ -139,29 +141,37 @@ oldest `watched_at` you have as `before_date`, use `days=3` for pages
   PATCH accepts any subset of `watched_at`, `location`, `watched_with`,
   `notes`, `focus`.
 
-### PROPOSED — `GET /checkins/continue-watching` ([whatisonthe.tv#16](https://github.com/swmcc/whatisonthe.tv/issues/16))
+### `GET /checkins/continue-watching` (shipped — [whatisonthe.tv#16](https://github.com/swmcc/whatisonthe.tv/issues/16))
 
-Powers the Home screen in one call. **This is the agreed contract — both
-sides build to this.** If it must change, change it in whatisonthe.tv#16
-first, then update this file and wott#5.
+Powers the Home screen in one call. Implemented exactly to this contract:
 
 ```json
 // response 200
 {
-  "items": [
-    {
-      "content": { "tvdb_id": 431162, "name": "Slow Horses",
-                   "content_type": "series", "year": 2022, "image_url": "…" },
-      "next_episode": { "tvdb_id": 9187556, "name": "…",
-                        "season_number": 2, "episode_number": 5,
-                        "aired": "2026-01-12", "runtime": 45,
-                        "image_url": null },
-      "last_watched_at": "2026-08-20T21:14:00Z",
-      "watched_episodes": 12,
-      "total_episodes": 20
-    }
-  ],
-  "generated_at": "2026-08-23T10:00:00Z"
+	"items": [
+		{
+			"content": {
+				"tvdb_id": 431162,
+				"name": "Slow Horses",
+				"content_type": "series",
+				"year": 2022,
+				"image_url": "…"
+			},
+			"next_episode": {
+				"tvdb_id": 9187556,
+				"name": "…",
+				"season_number": 2,
+				"episode_number": 5,
+				"aired": "2026-01-12",
+				"runtime": 45,
+				"image_url": null
+			},
+			"last_watched_at": "2026-08-20T21:14:00Z",
+			"watched_episodes": 12,
+			"total_episodes": 20
+		}
+	],
+	"generated_at": "2026-08-23T10:00:00Z"
 }
 ```
 
@@ -177,7 +187,7 @@ first, then update this file and wott#5.
 - `GET /search?q=<query>&limit=20&offset=0` →
   `{ "query", "results": [...], "count", "offset", "has_more" }`.
   Each result: `{ id, name, type, overview, year, image_url, poster,
-  primary_language, country, status }` — `id` is the **TVDB ID**, `type` is
+primary_language, country, status }` — `id` is the **TVDB ID**, `type` is
   `"series"` or `"movie"`, `year` is a **string** here (int elsewhere).
 - `GET /series/{tvdb_id}` / `GET /movie/{tvdb_id}` — detail objects
   (DB-first cache, TVDB fallback; shape is loose — see `/docs`).
@@ -191,7 +201,12 @@ first, then update this file and wott#5.
 ## CORS
 
 Origins come from the comma-separated `CORS_ORIGINS` env var
-(`backend/app/core/config.py`). The Capacitor WebView origins —
-`capacitor://localhost` (iOS) and `https://localhost` (Android) — must be
-added on Heroku: [whatisonthe.tv#19](https://github.com/swmcc/whatisonthe.tv/issues/19).
-Until that ships, test against a local backend with the origins in `.env`.
+(`backend/app/core/config.py`). The **defaults** now include the Capacitor
+WebView origins — `capacitor://localhost` (iOS) and `https://localhost`
+(Android) — so local dev works out of the box. Production sets the env var
+explicitly, so it still needs a one-time append on Heroku (see the
+whatisonthe.tv README deployment notes):
+
+```
+heroku config:set CORS_ORIGINS="<current origins>,capacitor://localhost,https://localhost"
+```

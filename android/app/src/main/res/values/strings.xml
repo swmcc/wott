@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WOTT</string>
+    <string name="title_activity_main">WOTT</string>
+    <string name="package_name">tv.whatisonthe.wott</string>
+    <string name="custom_url_scheme">tv.whatisonthe.wott</string>
+</resources>

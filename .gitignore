@@ -1,0 +1,30 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Capacitor generated web assets (recreated by `npx cap sync`)
+ios/App/App/public
+ios/App/App/capacitor.config.json
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+ios/DerivedData
