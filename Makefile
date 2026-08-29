@@ -52,6 +52,13 @@ android.local: ## Run on the Android emulator against a LOCAL whatisonthe.tv bac
 	fi; \
 	CAP_DEV_CLEARTEXT=1 npx cap run android --target $$target
 
+ios.local: ## Run on the iOS Simulator against a LOCAL whatisonthe.tv backend
+	@# iOS ATS exempts localhost, and capacitor://localhost is in the backend's
+	@# CORS defaults — so no cleartext flag needed, unlike Android.
+	VITE_API_BASE=http://localhost:8000/api npm run build
+	npx cap sync ios
+	npx cap run ios
+
 emulator: ## Boot the wott Android emulator (leave it running)
 	$(ANDROID_HOME)/emulator/emulator -avd wott -no-snapshot-save > /dev/null 2>&1 &
 
