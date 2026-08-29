@@ -29,6 +29,16 @@ ios: sync ## Open/run the app in the iOS simulator (needs Xcode)
 android: sync ## Open/run the app in an Android emulator (needs Android SDK)
 	npx cap run android
 
+android.local: ## Run on the Android emulator against a LOCAL whatisonthe.tv backend
+	@# Needs: backend running on :8000 (make dev in ~/Code/whatisonthe.tv) with
+	@# CORS_ORIGINS including http://localhost — see script/local-backend.sh
+	VITE_API_BASE=http://10.0.2.2:8000/api npm run build
+	CAP_DEV_CLEARTEXT=1 npx cap sync android
+	CAP_DEV_CLEARTEXT=1 npx cap run android
+
+emulator: ## Boot the wott Android emulator (leave it running)
+	$(ANDROID_HOME)/emulator/emulator -avd wott -no-snapshot-save &
+
 # 🧪 Testing
 
 test: ## Run unit tests (vitest)
