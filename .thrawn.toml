@@ -1,0 +1,5 @@
+# thrawn per-repo config
+
+[worktree]
+# Fresh worktrees need node_modules before any check can run.
+setup = "npm ci"
