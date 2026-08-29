@@ -13,6 +13,10 @@ export PATH := $(JAVA_HOME)/bin:$(ANDROID_HOME)/platform-tools:$(ANDROID_HOME)/e
 
 .DEFAULT_GOAL := help
 
+# Several targets share names with real directories (ios/, android/, build/),
+# so every target must be phony or make will say "up to date" and do nothing
+.PHONY: run setup install build sync ios android android.local ios.local emulator test lint lint.fix typecheck check help
+
 # 🧩 Local Development
 
 run: ## Start the Vite dev server (browser)
@@ -31,8 +35,8 @@ build: ## Build the static SPA bundle into build/
 sync: build ## Rebuild and copy web assets into the iOS/Android projects
 	npx cap sync
 
-ios: sync ## Open/run the app in the iOS simulator (needs Xcode)
-	npx cap run ios
+ios: ## Build, sync, and deploy to the booted iOS simulator (no prompts)
+	scripts/run-ios.sh
 
 android: sync ## Open/run the app in an Android emulator (needs Android SDK)
 	npx cap run android
@@ -52,12 +56,10 @@ android.local: ## Run on the Android emulator against a LOCAL whatisonthe.tv bac
 	fi; \
 	CAP_DEV_CLEARTEXT=1 npx cap run android --target $$target
 
-ios.local: ## Run on the iOS Simulator against a LOCAL whatisonthe.tv backend
+ios.local: ## Same as ios, but against a LOCAL whatisonthe.tv backend
 	@# iOS ATS exempts localhost, and capacitor://localhost is in the backend's
 	@# CORS defaults — so no cleartext flag needed, unlike Android.
-	VITE_API_BASE=http://localhost:8000/api npm run build
-	npx cap sync ios
-	npx cap run ios
+	VITE_API_BASE=http://localhost:8000/api scripts/run-ios.sh
 
 emulator: ## Boot the wott Android emulator (leave it running)
 	$(ANDROID_HOME)/emulator/emulator -avd wott -no-snapshot-save > /dev/null 2>&1 &
