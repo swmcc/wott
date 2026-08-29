@@ -21,7 +21,9 @@
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@types/better-sqlite3": "^9.6.0",
 		"@types/node": "^22",
+		"better-sqlite3": "^13.0.3",
 		"eslint": "^10.4.1",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.19.0",
@@ -36,6 +38,8 @@
 		"vitest": "^4.1.8"
 	},
 	"dependencies": {
+		"@aparajita/capacitor-secure-storage": "^8.0.0",
+		"@capacitor-community/sqlite": "^8.1.1",
 		"@capacitor/android": "^8.5.0",
 		"@capacitor/core": "^8.5.0",
 		"@capacitor/ios": "^8.5.0"
