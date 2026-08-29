@@ -3,6 +3,14 @@ GREEN := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)
 RESET := $(shell tput -Txterm sgr0)
 
+# Android toolchain (command-line SDK via Homebrew; JDK pinned for Gradle in
+# ~/.gradle/gradle.properties). Override with env vars if yours lives elsewhere.
+ANDROID_HOME ?= /opt/homebrew/share/android-commandlinetools
+JAVA_HOME ?= /opt/homebrew/opt/openjdk@21
+export ANDROID_HOME
+export JAVA_HOME
+export PATH := $(JAVA_HOME)/bin:$(ANDROID_HOME)/platform-tools:$(ANDROID_HOME)/emulator:$(PATH)
+
 .DEFAULT_GOAL := help
 
 # 🧩 Local Development
@@ -30,14 +38,22 @@ android: sync ## Open/run the app in an Android emulator (needs Android SDK)
 	npx cap run android
 
 android.local: ## Run on the Android emulator against a LOCAL whatisonthe.tv backend
-	@# Needs: backend running on :8000 (make dev in ~/Code/whatisonthe.tv) with
-	@# CORS_ORIGINS including http://localhost — see script/local-backend.sh
+	@# Needs: backend running on :8000 with CORS for device builds — start it
+	@# with script/local-backend.sh. Boots the emulator first if none is running.
 	VITE_API_BASE=http://10.0.2.2:8000/api npm run build
 	CAP_DEV_CLEARTEXT=1 npx cap sync android
-	CAP_DEV_CLEARTEXT=1 npx cap run android
+	@target=$$(adb devices | awk 'NR>1 && $$2=="device" {print $$1; exit}'); \
+	if [ -z "$$target" ]; then \
+		echo "$(YELLOW)no emulator running — booting wott AVD…$(RESET)"; \
+		$(ANDROID_HOME)/emulator/emulator -avd wott -no-snapshot-save > /dev/null 2>&1 & \
+		adb wait-for-device; \
+		until [ "$$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done; \
+		target=$$(adb devices | awk 'NR>1 && $$2=="device" {print $$1; exit}'); \
+	fi; \
+	CAP_DEV_CLEARTEXT=1 npx cap run android --target $$target
 
 emulator: ## Boot the wott Android emulator (leave it running)
-	$(ANDROID_HOME)/emulator/emulator -avd wott -no-snapshot-save &
+	$(ANDROID_HOME)/emulator/emulator -avd wott -no-snapshot-save > /dev/null 2>&1 &
 
 # 🧪 Testing
 
