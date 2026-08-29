@@ -62,6 +62,9 @@ export interface ContinueWatchingResponse {
 
 export interface CreateCheckinRequest {
 	content_id: number; // TVDB id
+	// TVDB movie and series ids are separate namespaces that can collide;
+	// without this the server guesses movie-first and can resolve the wrong title
+	content_type: 'series' | 'movie';
 	episode_id?: number | null; // TVDB id
 	watched_at: string; // ISO 8601
 }

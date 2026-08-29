@@ -21,6 +21,7 @@
 		try {
 			await createCheckin(api, {
 				content_id: item.content.tvdb_id,
+				content_type: item.content.content_type,
 				episode_id: item.next_episode?.tvdb_id ?? null,
 				watched_at: new Date().toISOString()
 			});

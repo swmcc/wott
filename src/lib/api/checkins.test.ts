@@ -57,16 +57,18 @@ describe('checkins api', () => {
 		expect(await listRecentCheckins(api, 3)).toEqual([]);
 	});
 
-	it('POSTs a check-in with TVDB ids and watched_at', async () => {
+	it('POSTs a check-in with TVDB ids, namespace, and watched_at', async () => {
 		const api = fakeApi({ '/checkins': checkin(1, '2026-08-29T20:00:00Z') });
 		await createCheckin(api, {
 			content_id: 431162,
+			content_type: 'series',
 			episode_id: 9187556,
 			watched_at: '2026-08-29T20:00:00Z'
 		});
 		expect(api.calls[0].method).toBe('POST');
 		expect(JSON.parse(api.calls[0].body as string)).toEqual({
 			content_id: 431162,
+			content_type: 'series',
 			episode_id: 9187556,
 			watched_at: '2026-08-29T20:00:00Z'
 		});
