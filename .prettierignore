@@ -12,3 +12,6 @@ bun.lockb
 /ios/
 /android/
 /build/
+
+# Thrawn runtime artifacts
+.thrawn/
