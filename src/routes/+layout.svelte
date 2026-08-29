@@ -37,6 +37,18 @@
 {/if}
 
 <style>
+	:global(body) {
+		margin: 0;
+		background: #0b0f1a;
+		color: #f3f4f6;
+		font-family:
+			ui-sans-serif,
+			-apple-system,
+			'Segoe UI',
+			Helvetica,
+			Arial,
+			sans-serif;
+	}
 	.splash {
 		min-height: 100dvh;
 		background: #0b0f1a;

@@ -1,5 +1,7 @@
-# thrawn per-repo config
+[thrawn]
+# integrator agents may dispatch without an interactive prompt
+auto_fix = true
 
-[worktree]
-# Fresh worktrees need node_modules before any check can run.
-setup = "npm ci"
+[checks]
+# worktrees have no node_modules — install merged deps before checking
+commands = ["bash -c 'npm install --no-audit --no-fund >/dev/null && make check'"]
